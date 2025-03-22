@@ -147,16 +147,32 @@ def view_dashboard(token):
     print(response.json())
 
 def search(token):
-    """Find the tags."""
-    url = f"{BASE_URL}/search"
-    
-    print("Searching...")
-    response = requests.get(url, headers=get_headers(token))
-    
-    print(f"Status Code: {response.status_code}")
-    print(f"Response: {response.text}")
+    """Find the tags based on a search query."""
+    query = input("Enter a search keyword (ex. bubble sort): ").strip()
+    if not query:
+        print("Please enter a valid query.")
+        return
 
-    print(response.json())
+    url = f"{BASE_URL}/search"
+    payload = {"query": query}
+    headers = get_headers(token)
+
+    print("Searching tags...")
+    response = requests.post(url, json=payload, headers=headers)
+
+    print(f"Status Code: {response.status_code}")
+    if response.status_code == 200:
+        data = response.json()
+        print("Search Results:")
+        for result in data.get("results", []):
+            print(f"- {result['fileName']}: Tags -> {result['tags']}")
+    else:
+        try:
+            error = response.json().get("error", "Unknown error")
+        except:
+            error = "Unknown error"
+        print(f"Search failed: {error}")
+
 
 def sign_out(token):
     """Sign out the user by invalidating their session."""
