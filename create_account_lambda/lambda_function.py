@@ -72,4 +72,4 @@ def lambda_handler(event, context):
         if connection:
             connection.close()
 
-    return {"statusCode": 201, "body": json.dumps({"userId": user_id, "message": "Account created successfully"})}
+    return {"statusCode": 200, "body": json.dumps({"userId": user_id, "message": "Account created successfully"})}

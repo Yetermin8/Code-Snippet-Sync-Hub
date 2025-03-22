@@ -77,7 +77,7 @@ def lambda_handler(event, context):
         connection = get_db_connection()
 
         with connection.cursor() as cursor:
-            # Checking if the file already exists for this suer
+            # CHECK IF FILE ALREADY EXISTS FOR THIS USER
             cursor.execute("SELECT snippetId FROM Snippets WHERE fileName = %s AND ownerId = %s", 
                            (file_name, authenticated_user_id))
             existing_snippet = cursor.fetchone()
@@ -117,8 +117,37 @@ def lambda_handler(event, context):
         connection.close()
         print(f"** Metadata stored in DB for snippet: {snippet_id} **")
 
+        # Initialize Lambda Client
+        lambda_client = boto3.client("lambda")
+
+        # Trigger Extract Metadata Lambda
+        extract_payload = {
+            "body": json.dumps({
+                "snippetId": snippet_id,
+                "fileName": file_name,
+                "snippetText": file_content
+            })
+        }
+
+        response = lambda_client.invoke(
+            FunctionName="project_extract_metadata",
+            InvocationType="Event",
+            Payload=json.dumps({
+                "headers": {
+                    "Authorization": f"Bearer {token}"
+                },
+                "body": json.dumps({
+                    "snippetId": snippet_id,
+                    "fileName": file_name,
+                    "snippetText": file_content
+                })
+            })
+        )
+
+        print(f"** Triggered Extract Metadata Lambda for snippet: {snippet_id} **")
+
         return {
-            "statusCode": 201,
+            "statusCode": 200,
             "body": json.dumps({"message": "Upload successful", "snippetId": snippet_id, "s3Uri": s3_uri})
         }
 

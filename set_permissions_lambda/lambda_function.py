@@ -59,12 +59,11 @@ def lambda_handler(event, context):
         owner_id = auth_data["userId"]
         print(f"** Authenticated User ID: {owner_id} **")
 
-        # Ensure body exists in event
         if "body" not in event:
             print("** ERROR: Missing request body **")
             return {"statusCode": 400, "body": json.dumps({"error": "Missing request body"})}
 
-        # Parse request
+        # arse Request
         try:
             body = json.loads(event["body"])
         except json.JSONDecodeError:
@@ -92,7 +91,7 @@ def lambda_handler(event, context):
                 return {"statusCode": 403, "body": json.dumps({"error": "Access denied: You do not own this snippet or it does not exist."})}
 
             snippet_id = snippet["snippetId"]
-            allowed_users = json.loads(snippet["allowedUsers"] or "[]")  # Ensure valid list
+            allowed_users = json.loads(snippet["allowedUsers"] or "[]")
 
             # Check if the target user exists
             cursor.execute("SELECT userId FROM Users WHERE username = %s", (target_username,))

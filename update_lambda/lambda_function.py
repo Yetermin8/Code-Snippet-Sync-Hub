@@ -62,22 +62,29 @@ def lambda_handler(event, context):
 
         # Parse body
         body = json.loads(event["body"])
-        snippet_id = body.get("snippetId")
+        file_name = body.get("fileName")
         new_file_content = body.get("fileContent")
 
-        if not snippet_id or not new_file_content:
-            return {"statusCode": 400, "body": json.dumps({"error": "Missing snippetId or fileContent"})}
+        if not file_name or not new_file_content:
+            return {"statusCode": 400, "body": json.dumps({"error": "Missing fileName or fileContent"})}
 
         connection = get_db_connection()
         with connection.cursor() as cursor:
             # Verify snippet exists and user has permission to update it
-            cursor.execute("SELECT ownerId, allowedUsers, s3Path, fileName FROM Snippets WHERE snippetId = %s", (snippet_id,))
+            cursor.execute("""
+                SELECT snippetId, ownerId, allowedUsers, s3Path, fileName
+                FROM Snippets
+                WHERE fileName = %s AND (ownerId = %s OR JSON_CONTAINS(allowedUsers, %s))
+            """, (file_name, requester_id, json.dumps(requester_id)))
+
             snippet = cursor.fetchone()
+
+            snippet_id = snippet["snippetId"]
 
             if not snippet:
                 return {"statusCode": 404, "body": json.dumps({"error": "Snippet not found."})}
 
-            allowed_users = json.loads(snippet["allowedUsers"])  # Convert JSON list from DB
+            allowed_users = json.loads(snippet["allowedUsers"])
 
             # Check if requester is either the owner or in the allowedUsers list
             if requester_id != snippet["ownerId"] and requester_id not in allowed_users:
@@ -91,7 +98,7 @@ def lambda_handler(event, context):
 
             # Delete old file from S3
             S3_CLIENT.delete_object(Bucket=S3_BUCKET, Key=old_s3_key)
-            print(f"🗑️ Deleted old file from S3: {old_s3_key}")
+            print(f"Deleted old file from S3: {old_s3_key}")
 
             # Upload new encrypted file to S3
             S3_CLIENT.put_object(Bucket=S3_BUCKET, Key=old_s3_key, Body=encrypted_data)
@@ -106,6 +113,29 @@ def lambda_handler(event, context):
             """, (updated_at, snippet_id))
 
             connection.commit()
+
+            # Trigger Extract Metadata Lambda
+            lambda_client = boto3.client("lambda")
+
+            extract_payload = {
+                "headers": {
+                    "Authorization": f"Bearer {token}"
+                },
+                "body": json.dumps({
+                    "snippetId": snippet_id,
+                    "fileName": file_name,
+                    "snippetText": new_file_content
+                })
+            }
+
+            response = lambda_client.invoke(
+                FunctionName="project_extract_metadata",
+                InvocationType="Event",
+                Payload=json.dumps(extract_payload)
+            )
+
+            print(f"Triggered Extract Metadata Lambda for snippet: {snippet_id} | Response Code: {response['StatusCode']}")
+
 
         return {
             "statusCode": 200,

@@ -146,6 +146,18 @@ def view_dashboard(token):
 
     print(response.json())
 
+def search(token):
+    """Find the tags."""
+    url = f"{BASE_URL}/search"
+    
+    print("Searching...")
+    response = requests.get(url, headers=get_headers(token))
+    
+    print(f"Status Code: {response.status_code}")
+    print(f"Response: {response.text}")
+
+    print(response.json())
+
 def sign_out(token):
     """Sign out the user by invalidating their session."""
     url = f"{BASE_URL}/sign-out"
@@ -175,7 +187,8 @@ def prompt():
     print("7. View Summary")
     print("8. Delete Snippet")
     print("9. View Dashboard")
-    print("10. Sign Out")
+    print("10. Search")
+    print("11. Sign Out")
     print("0. Exit")
     try:
         return int(input("Enter command: "))
@@ -207,6 +220,8 @@ if __name__ == "__main__":
         elif cmd == 9 and token:
             view_dashboard(token)
         elif cmd == 10 and token:
+            token = search(token)
+        elif cmd == 11 and token:
             token = sign_out(token)
         elif cmd == 0:
             sys.exit(0)

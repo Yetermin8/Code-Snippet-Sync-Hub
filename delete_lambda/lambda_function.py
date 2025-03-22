@@ -81,6 +81,10 @@ def lambda_handler(event, context):
             # Remove snippet record from database
             cursor.execute("DELETE FROM Snippets WHERE snippetId = %s", (snippet["snippetId"],))
 
+            # Remove snippet metadata from SnippetMetadata table
+            cursor.execute("DELETE FROM SnippetMetadata WHERE snippetId = %s", (snippet["snippetId"],))
+            print(f"Deleted snippet metadata for snippetId: {snippet['snippetId']}")
+
             # Update owner's upload count
             cursor.execute("UPDATE Users SET totalUploads = GREATEST(IFNULL(totalUploads, 0) - 1, 0) WHERE userId = %s", (requester_id,))
 

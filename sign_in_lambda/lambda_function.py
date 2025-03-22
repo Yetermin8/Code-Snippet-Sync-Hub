@@ -88,7 +88,7 @@ def lambda_handler(event, context):
         print("** Invoking Auth Lambda to generate token **")
 
         auth_response = lambda_client.invoke(
-            FunctionName="project_auth",  # Change this to your Auth Lambda name
+            FunctionName="project_auth",
             InvocationType="RequestResponse",
             Payload=json.dumps(auth_payload),
         )

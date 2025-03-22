@@ -79,16 +79,6 @@ def lambda_handler(event, context):
             if not snippet:
                 return {"statusCode": 403, "body": json.dumps({"error": "Access denied or file not found."})}
 
-            # Prevent re-downloading the same file from the same owner
-            cursor.execute("""
-                SELECT COUNT(*) as count
-                FROM Downloads
-                WHERE userId = %s AND fileName = %s AND snippetOwnerId = %s
-            """, (requester_id, requested_filename, snippet["ownerId"]))
-            prior_download = cursor.fetchone()
-            if prior_download["count"] > 0:
-                return {"statusCode": 409, "body": json.dumps({"error": "You have already downloaded this file from this user."})}
-
             # Fetch and decrypt snippet from S3
             s3_key = snippet["s3Path"].replace(f"s3://{S3_BUCKET}/", "")
             s3_response = S3_CLIENT.get_object(Bucket=S3_BUCKET, Key=s3_key)
@@ -102,24 +92,17 @@ def lambda_handler(event, context):
 
             # Update download counts
             cursor.execute("UPDATE Users SET totalDownloads = totalDownloads + 1 WHERE userId = %s", (requester_id,))
-            cursor.execute("UPDATE Snippets SET downloadCount = IFNULL(downloadCount, 0) + 1 WHERE snippetId = %s", (snippet["snippetId"],))
-            
-            # Log download with owner's username
-            cursor.execute("""
-                INSERT INTO Downloads (userId, snippetId, snippetOwnerId, ownerUsername, fileName)
-                VALUES (%s, %s, %s, %s, %s)
-            """, (requester_id, snippet["snippetId"], snippet["ownerId"], owner_username, requested_filename))
-
+            cursor.execute("UPDATE Snippets SET downloadCount = IFNULL(downloadCount, 0) + 1 WHERE snippetId = %s", (snippet["snippetId"],))            
             connection.commit()
 
-        print(f"Snippet Content:\n{decrypted_content}")
+        print(f"Snippet Content:\n{decrypted_content}")  # Print the decrypted file
 
         return {
             "statusCode": 200,
             "body": json.dumps({
                 "message": "Snippet download successful.",
                 "snippetId": snippet["snippetId"],
-                "content": decrypted_content
+                "content": decrypted_content  # Return decrypted file content
             })
         }
 
