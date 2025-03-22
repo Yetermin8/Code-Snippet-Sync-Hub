@@ -81,15 +81,30 @@ def download_snippet(token):
         print(f"Download failed: {data.get('error', 'Unknown error')}")
 
 def update_snippet(token):
-    """Update an existing snippet."""
-    snippet_id = input("Enter snippet ID: ").strip()
+    """Update an existing snippet by file name."""
+    file_name = input("Enter filename: ").strip()
     new_content = input("Enter new snippet content:\n")
 
-    payload = {"snippetId": snippet_id, "fileContent": new_content}
+    if not file_name or not new_content:
+        print("File name and content are required.")
+        return
+
+    payload = {"fileName": file_name, "fileContent": new_content}
     url = f"{BASE_URL}{config['snippets']['update']}"
 
     response = requests.put(url, json=payload, headers=get_headers(token))
-    print(response.json())
+
+    print(f"Status Code: {response.status_code}")
+    if response.status_code == 200:
+        print("Snippet updated successfully.")
+        print(response.json())
+    else:
+        try:
+            error = response.json().get("error", "Unknown error")
+        except:
+            error = "Unknown error"
+        print(f"Update failed: {error}")
+
 
 def set_permissions(token):
     """Grant or revoke permissions for another user."""
@@ -179,12 +194,19 @@ def sign_out(token):
     url = f"{BASE_URL}/sign-out"
     
     print("Signing out...")
-    response = requests.post(url, headers=get_headers(token))
+    
+    payload = {"token": token}
+    response = requests.post(url, json=payload, headers=get_headers(token))
     
     print(f"Status Code: {response.status_code}")
     print(f"Response: {response.text}")
 
-    print(response.json())
+    try:
+        data = response.json() if response.text else {}
+    except ValueError:
+        data = {"error": "Invalid JSON response"}
+
+    print(data)
 
     return None if response.status_code == 200 else token
 
@@ -213,7 +235,7 @@ def prompt():
 
 if __name__ == "__main__":
     print("** Welcome to Code Snippet Sync Hub **")
-    token = None  # User's authentication token
+    token = None
 
     while True:
         cmd = prompt()
